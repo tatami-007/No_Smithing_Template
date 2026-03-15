@@ -1,6 +1,8 @@
 package com.mizi.no_smithing_template.mixin;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.ItemCombinerMenu;
 import net.minecraft.world.inventory.MenuType;
@@ -10,7 +12,6 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.SmithingRecipe;
 import net.minecraft.world.item.crafting.SmithingRecipeInput;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.entity.player.Inventory;
 import javax.annotation.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -41,7 +42,7 @@ public abstract class SmithingMenuMixin extends ItemCombinerMenu {
 
         if (this.selectedRecipe != null && this.inputSlots.getItem(0).isEmpty()) {
             SmithingRecipe recipe = this.selectedRecipe.value();
-            if (recipe.isBaseIngredient(base) && recipe.isAdditionIngredient(addition)) {
+            if (this.createBypassInput(recipe, base, addition) != null) {
                 cir.setReturnValue(true);
             }
         }
@@ -53,15 +54,18 @@ public abstract class SmithingMenuMixin extends ItemCombinerMenu {
         ItemStack template = this.inputSlots.getItem(0);
         ItemStack base = this.inputSlots.getItem(1);
         ItemStack addition = this.inputSlots.getItem(2);
-        SmithingRecipeInput recipeInput = new SmithingRecipeInput(template, base, addition);
 
         if (template.isEmpty() && !base.isEmpty() && !addition.isEmpty()) {
+            this.selectedRecipe = null;
+            this.resultSlots.setItem(0, ItemStack.EMPTY);
+
             for (RecipeHolder<SmithingRecipe> recipeHolder : this.recipes) {
                 SmithingRecipe recipe = recipeHolder.value();
-                if (recipe.isBaseIngredient(base) && recipe.isAdditionIngredient(addition)) {
+                SmithingRecipeInput recipeInput = this.createBypassInput(recipe, base, addition);
+                if (recipeInput != null) {
                     ItemStack resultStack = recipe.assemble(recipeInput, this.level.registryAccess());
 
-                    if (resultStack.isItemEnabled(this.level.enabledFeatures())) {
+                    if (!resultStack.isEmpty() && resultStack.isItemEnabled(this.level.enabledFeatures())) {
                         this.selectedRecipe = recipeHolder;
                         this.resultSlots.setRecipeUsed(recipeHolder);
                         this.resultSlots.setItem(0, resultStack);
@@ -70,6 +74,34 @@ public abstract class SmithingMenuMixin extends ItemCombinerMenu {
                     }
                 }
             }
+
+            ci.cancel();
         }
+    }
+
+    @Nullable
+    private SmithingRecipeInput createBypassInput(SmithingRecipe recipe, ItemStack base, ItemStack addition) {
+        if (!recipe.isBaseIngredient(base) || !recipe.isAdditionIngredient(addition)) {
+            return null;
+        }
+
+        ItemStack templateCandidate = this.findTemplateCandidate(recipe);
+        if (templateCandidate.isEmpty()) {
+            return null;
+        }
+
+        SmithingRecipeInput recipeInput = new SmithingRecipeInput(templateCandidate, base, addition);
+        return recipe.matches(recipeInput, this.level) ? recipeInput : null;
+    }
+
+    private ItemStack findTemplateCandidate(SmithingRecipe recipe) {
+        for (var item : BuiltInRegistries.ITEM) {
+            ItemStack candidate = new ItemStack(item);
+            if (recipe.isTemplateIngredient(candidate)) {
+                return candidate;
+            }
+        }
+
+        return ItemStack.EMPTY;
     }
 }
