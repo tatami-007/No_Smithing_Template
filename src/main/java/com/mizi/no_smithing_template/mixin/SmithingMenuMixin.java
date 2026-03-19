@@ -1,8 +1,10 @@
 package com.mizi.no_smithing_template.mixin;
 
+import com.mizi.no_smithing_template.Config;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.ItemCombinerMenu;
+import net.minecraft.world.inventory.ItemCombinerMenuSlotDefinition;
 import net.minecraft.world.inventory.SmithingMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.SmithingRecipe;
@@ -18,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-@Mixin(SmithingMenu.class)
+@Mixin(value = SmithingMenu.class, priority = 1000)
 public abstract class SmithingMenuMixin extends ItemCombinerMenu {
 
     @Shadow @Final private Level level;
@@ -30,18 +32,22 @@ public abstract class SmithingMenuMixin extends ItemCombinerMenu {
         super(null, 0, null, ContainerLevelAccess.NULL);
     }
 
-    @Inject(method = "mayPickup", at = @At("HEAD"), cancellable = true)
-    protected void onMayPickup(Player pPlayer, boolean pHasStack, CallbackInfoReturnable<Boolean> cir) {
-        ItemStack base = this.inputSlots.getItem(1);
-        ItemStack addition = this.inputSlots.getItem(2);
-
-        if (this.selectedRecipe != null && this.inputSlots.getItem(0).isEmpty()) {
-            if (this.selectedRecipe.isBaseIngredient(base) && this.selectedRecipe.isAdditionIngredient(addition)) {
-                cir.setReturnValue(true);
-            }
-        }
+    @Inject(method = "createInputSlotDefinitions", at = @At("HEAD"), cancellable = true)
+    protected void onCreateInputSlotDefinitions(CallbackInfoReturnable<ItemCombinerMenuSlotDefinition> cir) {
+        cir.setReturnValue(ItemCombinerMenuSlotDefinition.create()
+                .withSlot(0, 8, 48, (stack) -> true)
+                .withSlot(1, 26, 48, (stack) -> this.recipes.stream().anyMatch((recipe) -> recipe.isBaseIngredient(stack)))
+                .withSlot(2, 44, 48, (stack) -> this.recipes.stream().anyMatch((recipe) -> recipe.isAdditionIngredient(stack)))
+                .withResultSlot(3, 98, 48)
+                .build());
     }
 
+    @Inject(method = "mayPickup", at = @At("HEAD"), cancellable = true)
+    protected void onMayPickup(Player pPlayer, boolean pHasStack, CallbackInfoReturnable<Boolean> cir) {
+        if (this.selectedRecipe != null) {
+            cir.setReturnValue(true);
+        }
+    }
 
     @Inject(method = "createResult", at = @At("HEAD"), cancellable = true)
     private void onCreateResult(CallbackInfo ci) {
@@ -50,16 +56,29 @@ public abstract class SmithingMenuMixin extends ItemCombinerMenu {
         ItemStack addition = this.inputSlots.getItem(2);
 
         if (template.isEmpty() && !base.isEmpty() && !addition.isEmpty()) {
+
+            if (Config.isTemplateRequired(base)) {
+                return;
+            }
+
             for (SmithingRecipe recipe : this.recipes) {
                 if (recipe.isBaseIngredient(base) && recipe.isAdditionIngredient(addition)) {
-                    ItemStack resultStack = recipe.assemble(this.inputSlots, this.level.registryAccess());
+                    try {
+                        ItemStack resultStack = recipe.assemble(this.inputSlots, this.level.registryAccess());
 
-                    if (resultStack.isItemEnabled(this.level.enabledFeatures())) {
-                        this.selectedRecipe = recipe;
-                        this.resultSlots.setRecipeUsed(recipe);
-                        this.resultSlots.setItem(0, resultStack);
-                        ci.cancel();
-                        return;
+                        if (!resultStack.isEmpty() && resultStack.isItemEnabled(this.level.enabledFeatures())) {
+
+                            if (Config.isTemplateRequired(resultStack)) {
+                                return;
+                            }
+
+                            this.selectedRecipe = recipe;
+                            this.resultSlots.setRecipeUsed(recipe);
+                            this.resultSlots.setItem(0, resultStack);
+                            ci.cancel();
+                            return;
+                        }
+                    } catch (Exception ignored) {
                     }
                 }
             }
