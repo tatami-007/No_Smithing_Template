@@ -14,13 +14,16 @@ public class Config {
     private static final ModConfigSpec.ConfigValue<List<? extends String>> BLACKLIST;
 
     static {
+        BUILDER.translation("no_smithing_template.configuration.general")
+                .comment("General settings.");
         BUILDER.push("General Settings");
         BLACKLIST = BUILDER
+                .translation("no_smithing_template.configuration.general.forced_template_items")
                 .comment(
                         "Which items should still require a smithing template?",
                         "Supported formats: 'modid' for an entire mod or 'modid:itemid' for a specific item."
                 )
-                .defineList("forcedTemplateItems", List.of(), obj -> obj instanceof String);
+                .defineListAllowEmpty("forcedTemplateItems", List.of(), () -> "", obj -> obj instanceof String);
         BUILDER.pop();
         SPEC = BUILDER.build();
     }

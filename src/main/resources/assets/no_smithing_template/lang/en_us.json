@@ -1,0 +1,8 @@
+{
+  "no_smithing_template.configuration.title": "%s Configuration",
+  "no_smithing_template.configuration.section.no.smithing.template.common.toml.title": "Common Settings",
+  "no_smithing_template.configuration.general": "General Settings",
+  "no_smithing_template.configuration.general.forced_template_items": "Items That Still Require Templates",
+  "no_smithing_template.configuration.general.forced_template_items.tooltip": "These items will still require a smithing template when upgrading.\nSupported formats:\n- modid\n- modid:itemid",
+  "no_smithing_template.configuration.general.forced_template_items.button": "Edit List"
+}

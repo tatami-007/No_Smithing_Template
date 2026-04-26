@@ -1,0 +1,8 @@
+{
+  "no_smithing_template.configuration.title": "%s 配置",
+  "no_smithing_template.configuration.section.no.smithing.template.common.toml.title": "通用配置",
+  "no_smithing_template.configuration.general": "通用设置",
+  "no_smithing_template.configuration.general.forced_template_items": "强制需要模板的物品",
+  "no_smithing_template.configuration.general.forced_template_items.tooltip": "这些物品在锻造升级时仍然必须放入锻造模板。\n支持格式：\n- modid\n- modid:itemid",
+  "no_smithing_template.configuration.general.forced_template_items.button": "编辑列表"
+}
